@@ -14,7 +14,13 @@ const centerButton = {
 
 const Photo = (props) => (
   <div className="output" style={{display: 'inline-block'}}>
-    <img id="photo" alt="Your photo" src={logo} style={{width: '640px', height: '480px'}}/>
+    <img id="photo" alt="Your photo" src={'/logo'} style={{width: '640px', height: '480px'}}/>
+  </div>
+);
+
+const MatchingPhoto = (props) => (
+  <div className="output" style={{display: 'inline-block'}}>
+    <img id="photo2" alt="Your photo" src={'/logo'} style={{width: '640px', height: '480px'}}/>
   </div>
 );
 
@@ -87,6 +93,18 @@ export default class WebcamCapture extends React.Component {
         }
     });
 
+
+    try {
+      const res = await resPromise;
+      const payload = res.data;
+      console.log('received payload: ', payload)
+      const photo = document.getElementById('photo2');
+      photo.setAttribute('src', `/serveImage/${payload.prediction_name}`);
+      // this.setState({prediction_name: payload.prediction_name, isLoading: false});
+      console.log(payload)
+    } catch (e) {
+        alert(e)
+    }
       // try {
       //     const res = await resPromise;
       //     const payload = res.data;
@@ -128,6 +146,10 @@ export default class WebcamCapture extends React.Component {
           <Button color="primary" round id="saveButton" onClick={ this.handlePredictClick } style={centerButton}>Get Predictions</Button>
           
           </div>
+          </Card>
+
+          <Card profile>
+              <MatchingPhoto />
           </Card>
           
         </div>
