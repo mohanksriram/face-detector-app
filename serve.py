@@ -15,7 +15,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import asarray
-from tensorflow.keras.models import load_model
+from keras.models import load_model
 from flask import send_file
 import pickle as p
 import numpy as np
