@@ -90,42 +90,17 @@ class Dashboard extends React.Component {
                 />
               </CardHeader>
               <CardBody>
-                <h4 className={classes.cardTitle}>Daily Sales</h4>
+                <h4 className={classes.cardTitle}>Weekly Attendance</h4>
                 <p className={classes.cardCategory}>
                   <span className={classes.successText}>
                     <ArrowUpward className={classes.upArrowCardCategory} /> 55%
                   </span>{" "}
-                  increase in today sales.
+                  increase in today's attendance.
                 </p>
               </CardBody>
               <CardFooter chart>
                 <div className={classes.stats}>
                   <AccessTime /> updated 4 minutes ago
-                </div>
-              </CardFooter>
-            </Card>
-          </GridItem>
-          <GridItem xs={12} sm={12} md={4}>
-            <Card chart>
-              <CardHeader color="warning">
-                <ChartistGraph
-                  className="ct-chart"
-                  data={emailsSubscriptionChart.data}
-                  type="Bar"
-                  options={emailsSubscriptionChart.options}
-                  responsiveOptions={emailsSubscriptionChart.responsiveOptions}
-                  listener={emailsSubscriptionChart.animation}
-                />
-              </CardHeader>
-              <CardBody>
-                <h4 className={classes.cardTitle}>Email Subscriptions</h4>
-                <p className={classes.cardCategory}>
-                  Last Campaign Performance
-                </p>
-              </CardBody>
-              <CardFooter chart>
-                <div className={classes.stats}>
-                  <AccessTime /> campaign sent 2 days ago
                 </div>
               </CardFooter>
             </Card>
@@ -142,14 +117,40 @@ class Dashboard extends React.Component {
                 />
               </CardHeader>
               <CardBody>
-                <h4 className={classes.cardTitle}>Completed Tasks</h4>
+                <h4 className={classes.cardTitle}>Arrival Times</h4>
                 <p className={classes.cardCategory}>
-                  Last Campaign Performance
+                  Today's arrival times
                 </p>
               </CardBody>
               <CardFooter chart>
                 <div className={classes.stats}>
-                  <AccessTime /> campaign sent 2 days ago
+                  <AccessTime /> just updated
+                </div>
+              </CardFooter>
+            </Card>
+          </GridItem>
+
+          <GridItem xs={12} sm={12} md={4}>
+            <Card chart>
+              <CardHeader color="warning">
+                <ChartistGraph
+                  className="ct-chart"
+                  data={emailsSubscriptionChart.data}
+                  type="Bar"
+                  options={emailsSubscriptionChart.options}
+                  responsiveOptions={emailsSubscriptionChart.responsiveOptions}
+                  listener={emailsSubscriptionChart.animation}
+                />
+              </CardHeader>
+              <CardBody>
+                <h4 className={classes.cardTitle}>Yearly Attendance</h4>
+                <p className={classes.cardCategory}>
+                  Last Year Attendance
+                </p>
+              </CardBody>
+              <CardFooter chart>
+                <div className={classes.stats}>
+                  <AccessTime /> updated 7 months ago
                 </div>
               </CardFooter>
             </Card>
@@ -160,9 +161,11 @@ class Dashboard extends React.Component {
           {/* <GridItem>
             <Webcam/>
           </GridItem> */}
-          <GridItem>
+          <GridItem md={12}>
             <WebcamCapture/>
           </GridItem>
+
+        </GridContainer>
           {/* <GridItem>
             <WebcamCapture/>
           </GridItem>
@@ -170,7 +173,8 @@ class Dashboard extends React.Component {
             <WebcamCapture/>
           </GridItem> */}
           
-          <GridItem xs={12} sm={12} md={6}>
+        <GridContainer>
+          {/* <GridItem xs={12} sm={12} md={6}>
             <CustomTabs
               title="Tasks:"
               headerColor="primary"
@@ -210,8 +214,8 @@ class Dashboard extends React.Component {
                 }
               ]}
             />
-          </GridItem>
-          <GridItem xs={12} sm={12} md={6}>
+          </GridItem> */}
+          <GridItem xs={12} sm={12} md={12}>
             <Card>
               <CardHeader color="warning">
                 <h4 className={classes.cardTitleWhite}>Employees Stats</h4>

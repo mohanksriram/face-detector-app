@@ -31,10 +31,12 @@ export default class WebcamCapture extends React.Component {
     super(props);
     this.state = {
         file: null,
-        predictions: [],
+        predictions: ['disha', 'suriya', 'mohan'],
+        probs: [0.2, 0.5, 0.8],
         imageSelected: false,
         isLoading: false,
         rawFile: null,
+        computeTime: 0,
       }
     }
 
@@ -49,43 +51,38 @@ export default class WebcamCapture extends React.Component {
       photo.setAttribute('src', imageSrc);
       this.setState({
         file: imageSrc,
-      });
+      }, this.handlePredictClick);
     };
 
+    renderPrediction() {
+      const predictions = this.state.predictions
+      const probs = this.state.probs
+      const computeTime = this.state.computeTime
 
-    // justpredict = () => {
-    //   const imageSrc = this.webcam.getScreenshot();
-    //   console.log('setting raw file up for prediction');
-    //  const photo = document.getElementById('photo');
-    //  console.log('photo source is: ', imageSrc);
-    //   this.setState({
-    //     rawFile: imageSrc,
-    //     file: imageSrc,
-    //     isLoading: true,
-    //   });
-    // };
+      if (predictions.length > 0) {
 
+          const predictionItems = predictions.map(function (ele, i) {
+            return <li>{ele} ({probs[i]}) </li> 
+          });
 
-    // handlePredictClick = () => {
+          return (
+              <ul>
+                  {predictionItems}
+                  <span> prediction time is: </span> {computeTime} <span> seconds</span>
+              </ul>
+          )
 
-    // }
+      } else {
+          return null
+      }
+  }
+
 
     handlePredictClick = async (event) => {
+      console.log('calling handlePredict')
       this.setState({isLoading: true});
       let resPromise = null;
       console.log('current url for prediction: ', this.state.file)
-
-      // axios.post('/api/classify', {
-      //   imageBase64: this.state.file
-      // })
-
-      // axios({
-      //   method: 'get',
-      //   url: '/api/classify',
-      //   data: {
-      //     imageBase64: this.state.file,
-      //   }
-      // });
 
       resPromise = axios.get('/api/classify', {
         params: {
@@ -93,27 +90,20 @@ export default class WebcamCapture extends React.Component {
         }
     });
 
-
     try {
       const res = await resPromise;
       const payload = res.data;
       console.log('received payload: ', payload)
       const photo = document.getElementById('photo2');
-      photo.setAttribute('src', `/serveImage/${payload.prediction_name}`);
-      // this.setState({prediction_name: payload.prediction_name, isLoading: false});
+      photo.setAttribute('src', `/serveImage/${payload.predictions[0]}`);
+      this.setState({predictions: payload.predictions, 
+        probs: payload.probs,
+        computeTime: payload.compute_time,
+        isLoading: false});
       console.log(payload)
     } catch (e) {
         alert(e)
     }
-      // try {
-      //     const res = await resPromise;
-      //     const payload = res.data;
-
-      //     this.setState({predictions: payload.predictions, isLoading: false});
-      //     console.log(payload)
-      // } catch (e) {
-      //     alert(e)
-      // }
   };
   
     render() {
@@ -135,23 +125,15 @@ export default class WebcamCapture extends React.Component {
             videoConstraints={videoConstraints}
           />
           <Button color="primary" round onClick={ this.capture } style={centerButton}>Capture Snap</Button>
+          {this.renderPrediction()}
           </Card>
 
           <Card profile>
           <Photo />
           <div>
-          {/* <Button color="primary" round>
-                Follow
-              </Button> */}
-          <Button color="primary" round id="saveButton" onClick={ this.handlePredictClick } style={centerButton}>Get Predictions</Button>
-          
+          <MatchingPhoto />
           </div>
-          </Card>
-
-          <Card profile>
-              <MatchingPhoto />
-          </Card>
-          
+          </Card>          
         </div>
       );
     }

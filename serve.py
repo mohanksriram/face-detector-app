@@ -15,17 +15,21 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import asarray
-from tensorflow.keras.models import load_model
+from keras.models import load_model
 from flask import send_file
+import pickle as p
+import numpy as np
+from scipy.stats import mode
+from sklearn.cluster import KMeans
+import os
+from tensorflow.keras.backend import set_session
+import tensorflow as tf
+import time
+
+sess = tf.compat.v1.get_default_session()
+graph = tf.get_default_graph()
 
 
-
-
-
-#import cv2
-facenet_model = None
-classifier_model = None
-class_encoder = None
 
 # Utility functions
 # extract a single face from a given photograph
@@ -61,6 +65,7 @@ def get_embedding(model, face_pixels):
 	# transform face into one sample
 	samples = np.expand_dims(face_pixels, axis=0)
 	# make prediction to get embedding
+
 	yhat = model.predict(samples)
 	return yhat[0]
 
@@ -71,12 +76,57 @@ def serve_pil_image(filename):
     return send_file(filename, mimetype='image/jpeg')
     #return send_file(img_io, mimetype='image/jpeg')
 
+def sim_predict(model, new_img_f, orig_classes, top_n=1, n_classes=5):
+    # cluster labels do not match with actual order of train data. so find indices to reorder cluster centres
+    kmeans = model
+    steps = np.linspace(0, len(kmeans.labels_), num=n_classes+1)
+    orig_labels = []
+    last_val = 0
+    for i in steps[1:]:
+        cluster_labels = kmeans.labels_[last_val:int(i)]
+        last_val = int(i)
+        orig_labels += [mode(cluster_labels)[0][0]]
+
+    # new_map = {}
+    # for i, label in enumerate(encode_labels):
+    #     new_map[]
+
+
+    relabeled = kmeans.cluster_centers_[orig_labels]
+    sims = np.array([])
+    for i in range(relabeled.shape[0]):
+        sim = np.dot(relabeled[i],new_img_f)
+        sims = np.append(sims,sim)
+    sims_top_n = sims.argsort()[-top_n:][::-1]
+    classes = sims_top_n
+
+    classes = [orig_classes[val] for val in classes]
+    
+    #print(f'new_classes: {classes}')
+    probs = sims[sims_top_n]
+    #print(f'classes: {classes}')
+    return classes, probs
 
 app = Flask(__name__, static_folder="build/static",
  template_folder="build")
 
+# All Model setup
+
+set_session(sess)
+
+# load the pre-trained Keras model
+facenet_model = load_model('models/facenet_keras.h5')
+#graph = tf.get_default_graph()
+#facenet_model._make_predict_function()
+filename = 'models/classifier_model.sav'
+classifier_model = pickle.load(open(filename, 'rb'))
+orig_classes = None
+with open("models/orig_classes.txt", "rb") as fp:   # Unpickling
+    orig_classes = pickle.load(fp)
+
+
 @app.route("/")
-def hello():
+def root():
     return render_template('index.html')
     
 @app.route("/admin/dashboard")
@@ -101,9 +151,7 @@ def serve_latest(path):
 def upload_file():
     if flask.request.method == 'GET':
 
-        facenet_model = None
-        classifier_model = None
-        class_encoder = None
+        start_time = time.time()
         
         print('received a get request')
         data_url = flask.request.args.get("url")
@@ -121,76 +169,83 @@ def upload_file():
         
         # Generate Embedding'
         # Load model if doesn't already exist
-        if not facenet_model:
-            facenet_model = load_model('models/facenet_keras.h5')
+        #if not facenet_model:
+        #    facenet_model = load_model('models/facenet_keras.h5')
+        #with graph.as_default():
+        global sess
+        global graph
+        with graph.as_default():
+            set_session(sess)
+            embedding = get_embedding(facenet_model, faces)
 
-        embedding = get_embedding(facenet_model, faces)
+        in_encoder = Normalizer(norm='l2')
+        embedding = np.expand_dims(embedding, axis=0)
+        
+        embedding = in_encoder.transform(embedding)
 
         # Perform prediction
-        if not classifier_model:
-            filename = 'models/classifier_model.sav'
+        #if not classifier_model:
+        #    filename = 'models/classifier_model.sav'
 
-            classifier_model = pickle.load(open(filename, 'rb'))
+        #    classifier_model = pickle.load(open(filename, 'rb'))
 
-        samples = np.expand_dims(embedding, axis=0)
-        yhat_class = classifier_model.predict(samples)
-        yhat_prob = classifier_model.predict_proba(samples)
 
-        if not class_encoder:
-            class_encoder = LabelEncoder()
-            class_encoder.classes_ = np.load('models/classes.npy')
+        print(f'embedding shape: {embedding.shape}')
+        samples = embedding[0]#np.expand_dims(embedding, axis=0)
+
+        print(f'samples shape: {samples.shape}')
+
+        #orig_classes = None
+        #with open("models/orig_classes.txt", "rb") as fp:   # Unpickling
+        #    orig_classes = pickle.load(fp)
+
+        
+        yhat_class, yhat_prob = sim_predict(classifier_model, samples, orig_classes, top_n=5)
+
+        print(f'yhat class: {yhat_class}, yhat_prob: {yhat_prob}')
+
+        #yhat_class = classifier_model.predict(samples)
+        #yhat_prob = classifier_model.predict_proba(samples)
+
+        # if not class_encoder:
+        #     class_encoder = LabelEncoder()
+        #     class_encoder.classes_ = np.load('models/classes.npy')
+
+
 
 
         # get name
-        class_index = yhat_class[0]
-        class_probability = yhat_prob[0,class_index] * 100
-        predict_names = class_encoder.inverse_transform(yhat_class)
-        print('Predicted: %s (%.3f)' % (predict_names[0], class_probability))
+        #class_index = yhat_class[0]
+        class_probability = yhat_prob[0] * 100
+        predict_names = yhat_class#class_encoder.inverse_transform(yhat_class)
+        print('Predicted: %s (%.3f)' % (predict_names, class_probability))
         # plot for fun
         # plt.imshow(faces)
         # title = '%s (%.3f)' % (predict_names[0], class_probability)
         # plot.title(title)
         # plot.show()
-        filename = f'data/custom/train/{predict_names[0]}/1.jpg'
         
-        res = {'prediction_name': predict_names[0], 'prob': class_probability}
+        compute_time = time.time() - start_time
+        res = {'predictions': predict_names, 'probs': list(yhat_prob), 'compute_time': compute_time}
         print(res)
         return flask.jsonify(res)
-        #return send_file(filename, mimetype='image/jpg')
 
-        w=10
-        h=10
-        fig=plt.figure(figsize=(8, 8))
-        fig.add_subplot(2, 1, 1)
-        title = '%s (%.3f)' % (predict_names[0], class_probability)
-        plt.title(title)
-        plt.imshow(faces)
-
-        img = Image.open(f'data/custom/train/{predict_names[0]}/1.jpg')
-        fig.add_subplot(2, 1, 2)
-        plt.imshow(img)
-        plt.show()
-
-
-        
-        # cv2.imshow('image', img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        print(f'final decoded image!')
-    else:
-        print("received a new post request!")
-        print(f'flask request is: {flask.request}')
-        print(f'flask request values are: {flask.request.values}')
-        data_url = flask.request.values['imageBase64']
-        #print(f"flask request files are {flask.request.files}")
-        #bytes = flask.request.files['file'].read()
-        #img = load_image_bytes(bytes)
-    res = []#predict(img)
+    res = []
     return flask.jsonify(res)
 
 
+def before_request():
+    app.jinja_env.cache = {}
 
-print('Starting Flask!')
+#print('Starting Flask!')
 
-app.debug=True
-app.run(host='0.0.0.0')
+#app.debug=True
+#app.run(host='0.0.0.0')
+
+
+if __name__ == '__main__':
+    int()
+    port = os.environ.get('PORT', 5000)
+    app.jinja_env.auto_reload = True
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.run(debug=False, host='0.0.0.0', port=port)

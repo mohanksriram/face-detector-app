@@ -47,7 +47,7 @@ const dashboardRoutes = [
   },
   {
     path: "/user",
-    name: "User Profile",
+    name: "New Enrollment",
     rtlName: "ملف تعريفي للمستخدم",
     icon: Person,
     component: UserProfile,
@@ -55,7 +55,7 @@ const dashboardRoutes = [
   },
   {
     path: "/table",
-    name: "Table List",
+    name: "Employee List",
     rtlName: "قائمة الجدول",
     icon: "content_paste",
     component: TableList,
@@ -63,23 +63,15 @@ const dashboardRoutes = [
   },
   {
     path: "/typography",
-    name: "Typography",
+    name: "Queries",
     rtlName: "طباعة",
     icon: LibraryBooks,
     component: Typography,
     layout: "/admin"
   },
   {
-    path: "/icons",
-    name: "Icons",
-    rtlName: "الرموز",
-    icon: BubbleChart,
-    component: Icons,
-    layout: "/admin"
-  },
-  {
     path: "/maps",
-    name: "Maps",
+    name: "Location",
     rtlName: "خرائط",
     icon: LocationOn,
     component: Maps,
@@ -93,22 +85,22 @@ const dashboardRoutes = [
     component: NotificationsPage,
     layout: "/admin"
   },
-  {
-    path: "/rtl-page",
-    name: "RTL Support",
-    rtlName: "پشتیبانی از راست به چپ",
-    icon: Language,
-    component: RTLPage,
-    layout: "/rtl"
-  },
-  {
-    path: "/upgrade-to-pro",
-    name: "Upgrade To PRO",
-    rtlName: "التطور للاحترافية",
-    icon: Unarchive,
-    component: UpgradeToPro,
-    layout: "/admin"
-  }
+  // {
+  //   path: "/rtl-page",
+  //   name: "RTL Support",
+  //   rtlName: "پشتیبانی از راست به چپ",
+  //   icon: Language,
+  //   component: RTLPage,
+  //   layout: "/rtl"
+  // },
+  // {
+  //   path: "/upgrade-to-pro",
+  //   name: "Upgrade To PRO",
+  //   rtlName: "التطور للاحترافية",
+  //   icon: Unarchive,
+  //   component: UpgradeToPro,
+  //   layout: "/admin"
+  // }
 ];
 
 export default dashboardRoutes;
