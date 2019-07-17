@@ -16,7 +16,7 @@ git clone https://github.com/mohankumarSriram/face-detector-app.git
 ```
 
 - Download data [here](https://drive.google.com/open?id=1vqecrTsYKU8BUPIfa8edXFWLPCveBdjH)
-- Download pre-trained models [here](https://drive.google.com/open?id=15nyPwd9bCZDG3D8wgz_d22jCR3AMVkUp)
+- Download pre-trained models [here](https://drive.google.com/open?id=16vn4dgJiylI7t9TVLlbcZVPxKKoriijn)
 
 ```
 unzip ~/Downloads/data.zip -d ./
