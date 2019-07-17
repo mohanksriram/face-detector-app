@@ -118,7 +118,7 @@ set_session(sess)
 facenet_model = load_model('models/facenet_keras.h5')
 #graph = tf.get_default_graph()
 #facenet_model._make_predict_function()
-filename = 'models/classifier_model.sav'
+filename = 'models/kmeans_model.sav'
 classifier_model = pickle.load(open(filename, 'rb'))
 orig_classes = None
 with open("models/orig_classes.txt", "rb") as fp:   # Unpickling

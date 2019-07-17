@@ -12,7 +12,7 @@ conda activate tf-keras
 ```
 Clone the repo
 ```
-git clone https://github.com/mohankumarSriram/face-verification.git
+git clone https://github.com/mohankumarSriram/face-detector-app.git
 ```
 
 - Download data [here](https://drive.google.com/open?id=1vqecrTsYKU8BUPIfa8edXFWLPCveBdjH)
@@ -20,7 +20,7 @@ git clone https://github.com/mohankumarSriram/face-verification.git
 
 ```
 unzip ~/Downloads/data.zip -d ./
-unzip ~/Downloads/model.zip -d ./
+unzip ~/Downloads/models.zip -d ./
 ```
 
 Install requiremnts
