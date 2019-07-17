@@ -1,2 +1,8 @@
 flask
 requests
+tensorflow
+mtcnn
+Pillow >= 2.1.0
+opencv-python
+sklearn
+matplotlib
