@@ -29,6 +29,15 @@ import time
 sess = tf.compat.v1.get_default_session()
 graph = tf.get_default_graph()
 
+import logging
+
+logging.basicConfig(filename="Log_Test_File.txt",
+                level=logging.DEBUG,
+                format='%(levelname)s: %(asctime)s %(message)s',
+                datefmt='%m/%d/%Y %I:%M:%S')
+
+
+enable_kmeans = True
 
 
 # Utility functions
@@ -39,9 +48,18 @@ def extract_face(image, required_size=(160, 160)):
     # convert to array
     pixels = asarray(image)
     # create the detector, using default weights
+    start_time = time.time()
     detector = MTCNN()
+
+
     # detect faces in the image
     results = detector.detect_faces(pixels)
+
+    end_time = time.time() - start_time
+    logging.info('Time for MTCNN Detector: {}'.format(end_time))
+    print('Time for MTCNN Detector: {}'.format(end_time))
+
+
     # extract the bounding box from the first face
     x1, y1, width, height = results[0]['box']
     # bug fix
@@ -76,7 +94,7 @@ def serve_pil_image(filename):
     return send_file(filename, mimetype='image/jpeg')
     #return send_file(img_io, mimetype='image/jpeg')
 
-def sim_predict(model, new_img_f, orig_classes, top_n=1, n_classes=5):
+def sim_predict(model, new_img_f, kmean_classes, top_n=1, n_classes=5):
     # cluster labels do not match with actual order of train data. so find indices to reorder cluster centres
     kmeans = model
     steps = np.linspace(0, len(kmeans.labels_), num=n_classes+1)
@@ -100,7 +118,7 @@ def sim_predict(model, new_img_f, orig_classes, top_n=1, n_classes=5):
     sims_top_n = sims.argsort()[-top_n:][::-1]
     classes = sims_top_n
 
-    classes = [orig_classes[val] for val in classes]
+    classes = [kmean_classes[val] for val in classes]
     
     #print(f'new_classes: {classes}')
     probs = sims[sims_top_n]
@@ -115,14 +133,34 @@ app = Flask(__name__, static_folder="build/static",
 set_session(sess)
 
 # load the pre-trained Keras model
+start_time = time.time()
+
 facenet_model = load_model('models/facenet_keras.h5')
-#graph = tf.get_default_graph()
-#facenet_model._make_predict_function()
+
+end_time = time.time() - start_time
+logging.info('Time for loading facenet model: {}'.format(end_time))
+print('Time for loading facenet model: {}'.format(end_time))
+
+
+start_time = time.time()
+
 filename = 'models/kmeans_model.sav'
-classifier_model = pickle.load(open(filename, 'rb'))
-orig_classes = None
-with open("models/orig_classes.txt", "rb") as fp:   # Unpickling
-    orig_classes = pickle.load(fp)
+kmeans_model = pickle.load(open(filename, 'rb'))
+
+filename = 'models/svc_model.sav'
+svc_model = pickle.load(open(filename, 'rb'))
+
+        #    classifier_model = pickle.load(open(filename, 'rb'))
+kmean_classes = None
+with open("models/kmeans_classes.txt", "rb") as fp:   # Unpickling
+    kmean_classes = pickle.load(fp)
+
+svc_classes = np.load('models/svc_classes.npy')
+
+end_time = time.time() - start_time
+logging.info('Time for loading classifier: {}'.format(end_time))
+print('Time for loading classifier: {}'.format(end_time))
+
 
 
 @app.route("/")
@@ -150,17 +188,18 @@ def serve_latest(path):
 @app.route('/api/classify', methods=['POST', 'GET'])
 def upload_file():
     if flask.request.method == 'GET':
-
+        overall_time = time.time()
         start_time = time.time()
         
-        print('received a get request')
+       # print('received a get request')
         data_url = flask.request.args.get("url")
         content = data_url.split(';')[1]
         image_encoded = content.split(',')[1]
         body = base64.decodebytes(image_encoded.encode('utf-8'))
-        filename = 'some_image.jpg'  # I assume you have a way of picking unique filenames
-        with open(filename, 'wb') as f:
-            f.write(body)
+
+        end_time = time.time() - start_time
+        logging.info('Time for Decoding image: {}'.format(end_time))
+        print('Time for Decoding image: {}'.format(end_time))
 
         image = Image.open(BytesIO(body))
         
@@ -168,16 +207,19 @@ def upload_file():
         faces = extract_face(image)
         
         # Generate Embedding'
-        # Load model if doesn't already exist
-        #if not facenet_model:
-        #    facenet_model = load_model('models/facenet_keras.h5')
-        #with graph.as_default():
         global sess
         global graph
         with graph.as_default():
             set_session(sess)
+            start_time = time.time()
             embedding = get_embedding(facenet_model, faces)
+            end_time = time.time() - start_time
+            logging.info('Time for generating embedding : {}'.format(end_time))
+            print('Time for generating embedding: {}'.format(end_time))
 
+
+
+        start_time = time.time()
         in_encoder = Normalizer(norm='l2')
         embedding = np.expand_dims(embedding, axis=0)
         
@@ -190,43 +232,30 @@ def upload_file():
         #    classifier_model = pickle.load(open(filename, 'rb'))
 
 
-        print(f'embedding shape: {embedding.shape}')
-        samples = embedding[0]#np.expand_dims(embedding, axis=0)
-
-        print(f'samples shape: {samples.shape}')
-
-        #orig_classes = None
-        #with open("models/orig_classes.txt", "rb") as fp:   # Unpickling
-        #    orig_classes = pickle.load(fp)
-
+        samples = embedding[0]
         
-        yhat_class, yhat_prob = sim_predict(classifier_model, samples, orig_classes, top_n=5)
-
-        print(f'yhat class: {yhat_class}, yhat_prob: {yhat_prob}')
-
-        #yhat_class = classifier_model.predict(samples)
-        #yhat_prob = classifier_model.predict_proba(samples)
-
-        # if not class_encoder:
-        #     class_encoder = LabelEncoder()
-        #     class_encoder.classes_ = np.load('models/classes.npy')
+        svc_yhat_class = svc_model.predict(embedding)
+        svc_yhat_prob = svc_model.predict_proba(embedding)
 
 
+        yhat_class, yhat_prob = sim_predict(kmeans_model, samples, kmean_classes, top_n=5)
+        
+        end_time = time.time() - start_time
+        logging.info('Time for class predictions: Kmeans: {}'.format(end_time))
+        print('Time for class predictions: Kmeans: {}'.format(end_time))
 
 
-        # get name
-        #class_index = yhat_class[0]
         class_probability = yhat_prob[0] * 100
-        predict_names = yhat_class#class_encoder.inverse_transform(yhat_class)
-        print('Predicted: %s (%.3f)' % (predict_names, class_probability))
-        # plot for fun
-        # plt.imshow(faces)
-        # title = '%s (%.3f)' % (predict_names[0], class_probability)
-        # plot.title(title)
-        # plot.show()
+        predict_names = yhat_class
+        #print('Predicted: %s (%.3f)' % (predict_names, class_probability))
+        compute_time = time.time() - overall_time
+
+        res = {'svc_class': svc_classes[svc_yhat_class[0]], 'confidence': svc_yhat_prob[0, svc_yhat_class[0]]*100}
+
+
+        if enable_kmeans:
+            res.update({'predictions': predict_names, 'probs': list(yhat_prob), 'compute_time': compute_time})
         
-        compute_time = time.time() - start_time
-        res = {'predictions': predict_names, 'probs': list(yhat_prob), 'compute_time': compute_time}
         print(res)
         return flask.jsonify(res)
 
@@ -236,11 +265,6 @@ def upload_file():
 
 def before_request():
     app.jinja_env.cache = {}
-
-#print('Starting Flask!')
-
-#app.debug=True
-#app.run(host='0.0.0.0')
 
 
 if __name__ == '__main__':
