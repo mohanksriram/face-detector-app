@@ -31,6 +31,7 @@ export default class WebcamCapture extends React.Component {
     super(props);
     this.state = {
         file: null,
+        confidence: 0,
         predictions: ['disha', 'suriya', 'mohan'],
         probs: [0.2, 0.5, 0.8],
         imageSelected: false,
@@ -69,11 +70,18 @@ export default class WebcamCapture extends React.Component {
               <ul>
                   {predictionItems}
                   <span> prediction time is: </span> {computeTime} <span> seconds</span>
+                  <ul>
+                  <span>Confidence: </span> {this.state.confidence}
+                  </ul>
               </ul>
           )
 
       } else {
-          return null
+          return (
+            <ul>
+              <span>Confidence: </span> {this.state.confidence}
+            </ul>
+          )
       }
   }
 
@@ -95,10 +103,11 @@ export default class WebcamCapture extends React.Component {
       const payload = res.data;
       console.log('received payload: ', payload)
       const photo = document.getElementById('photo2');
-      photo.setAttribute('src', `/serveImage/${payload.predictions[0]}`);
+      photo.setAttribute('src', `/serveImage/${payload.svc_class}`);
       this.setState({predictions: payload.predictions, 
         probs: payload.probs,
         computeTime: payload.compute_time,
+        confidence: payload.confidence,
         isLoading: false});
       console.log(payload)
     } catch (e) {
