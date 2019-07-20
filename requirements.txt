@@ -7,3 +7,4 @@ opencv-python
 sklearn
 matplotlib
 keras
+face_recognition
