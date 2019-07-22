@@ -320,7 +320,7 @@ def upload_file():
         success, img = vidcap.read()
 
 
-        #cv2.imwrite(last_detected_face, img)
+        cv2.imwrite(last_detected_face, img)
         end_time = time.time() - start_time
         logging.info('Time for capturing image: {}'.format(end_time))
         print('Time for capturing image: {}'.format(end_time))
@@ -330,7 +330,7 @@ def upload_file():
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(img)
 
-        last_detected_face = image
+        # last_detected_face = image
 
         end_time = time.time() - start_time
         logging.info('Time for cv2 to pil image: {}'.format(end_time))
