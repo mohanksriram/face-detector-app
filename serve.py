@@ -26,6 +26,7 @@ from tensorflow.keras.backend import set_session
 import tensorflow as tf
 import time
 import face_recognition
+import cv2
 
 sess = tf.compat.v1.get_default_session()
 graph = tf.get_default_graph()
@@ -38,11 +39,93 @@ logging.basicConfig(filename="Log_Test_File.txt",
                 datefmt='%m/%d/%Y %I:%M:%S')
 
 
+model_file = "opencv_face_detector_uint8.pb"
+config_file = "opencv_face_detector.pbtxt"
+dnn_weights_path = 'models'
+modelFile = os.path.join(dnn_weights_path, model_file)
+configFile = os.path.join(dnn_weights_path, config_file)
+
 enable_kmeans = True
+RTSP_URL = 'rtsp://admin:admin@192.168.1.117:554'
+last_detected_face = 'data/last_face.png'
 
 
 # Utility functions
 # extract a single face from a given photograph
+
+def get_face_locations(image):
+    blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), [104, 117, 123], False, False)
+    net = cv2.dnn.readNetFromTensorflow(modelFile, configFile)
+    net.setInput(blob)
+    detections = net.forward()
+    bboxes = []
+    frame_width = image.shape[1]
+    frame_height = image.shape[0]
+    for i in range(detections.shape[2]):
+        confidence = detections[0, 0, i, 2]
+        if confidence > 0.7:
+            x1 = int(detections[0, 0, i, 3] * frame_width)
+            y1 = int(detections[0, 0, i, 4] * frame_height)
+            x2 = int(detections[0, 0, i, 5] * frame_width)
+            y2 = int(detections[0, 0, i, 6] * frame_height)
+            
+            width = abs(x2 - x1)
+            height = abs(y2 - y1)
+            area = width * height
+
+            bboxes.append(([x1, y1, x2, y2], area))
+    #print(f'nomral bboxes: {bboxes}')
+    bboxes.sort(key=lambda x: x[1], reverse=True)
+    #print(f'sorted bboxes: {bboxes}')
+    return bboxes
+
+def extract_cv_face(image, required_size=(160, 160)):
+    start_time = time.time()
+    
+    image = np.array(image, dtype='uint8')
+    face_locations = get_face_locations(image)
+
+    end_time = time.time() - start_time
+    logging.info('Time for dnn Detector: {}'.format(end_time))
+    print('Time for dnn Detector: {}'.format(end_time))
+
+    if len(face_locations) > 0 and is_within_threshold(image, face_locations[0][0]):
+
+        x1, y1, x2, y2 = face_locations[0][0]
+        face_rect = face_locations[0][0]
+        
+        full_pixels = image
+
+        # face = full_pixels[top:bottom, left:right]
+
+        face = full_pixels[y1:y2, x1:x2]
+
+
+        image = Image.fromarray(face)
+        image = image.resize(required_size)
+        face_array = asarray(image)
+
+
+    else:
+        return [], []
+    
+    return face_array, face_rect
+
+def is_within_threshold(image, bbox, threshold=20):
+    x1, y1, x2, y2 = bbox
+
+    print(f'face box: {bbox}, width: {image.shape[0]}, height: {image.shape[1]}')
+
+
+    if x1 < threshold or image.shape[1] - x2 < threshold or y1 < threshold or image.shape[0] - y2 < threshold: 
+        return False
+
+    return True
+
+
+
+
+
 def extract_face(image, required_size=(160, 160)):
     # convert to RGB, if needed
     image = image.convert('RGB')
@@ -207,9 +290,15 @@ def serve_img():
     print(f'image: {img}')
     return serve_pil_image(filename)
 
+@app.route("/lastFace/<path:path>")
+def serve_face(path):
+    print(f'serving last detected face!')
+    return serve_pil_image(last_detected_face)
+
 
 @app.route('/serveImage/<path:path>')
 def serve_latest(path):
+    print(f'serving matching face!')
     filename = f'data/custom/train/{path}/image_0.png'
     img = Image.open(filename)
     return serve_pil_image(filename)
@@ -222,19 +311,34 @@ def upload_file():
         start_time = time.time()
         
        # print('received a get request')
-        data_url = flask.request.args.get("url")
-        content = data_url.split(';')[1]
-        image_encoded = content.split(',')[1]
-        body = base64.decodebytes(image_encoded.encode('utf-8'))
+        # data_url = flask.request.args.get("url")
+        # content = data_url.split(';')[1]
+        # image_encoded = content.split(',')[1]
+        # body = base64.decodebytes(image_encoded.encode('utf-8'))
+        #image = Image.open(BytesIO(body))
+        vidcap = cv2.VideoCapture(RTSP_URL)
+        success, img = vidcap.read()
+
+
+        #cv2.imwrite(last_detected_face, img)
+        end_time = time.time() - start_time
+        logging.info('Time for capturing image: {}'.format(end_time))
+        print('Time for capturing image: {}'.format(end_time))
+
+
+        start_time = time.time()
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(img)
+
+        last_detected_face = image
 
         end_time = time.time() - start_time
-        logging.info('Time for Decoding image: {}'.format(end_time))
-        print('Time for Decoding image: {}'.format(end_time))
+        logging.info('Time for cv2 to pil image: {}'.format(end_time))
+        print('Time for cv2 to pil image: {}'.format(end_time))
 
-        image = Image.open(BytesIO(body))
-        
+
         # Face detection
-        faces, face_rect = extract_face(image)
+        faces, face_rect = extract_cv_face(image)
         
         if len(faces) == 0:
             compute_time = time.time() - overall_time
@@ -244,6 +348,7 @@ def upload_file():
             return flask.jsonify(res)
 
 
+        print('Detected Face!')
 
         # Generate Embedding'
         global sess
@@ -304,7 +409,8 @@ def upload_file():
 
 
 def before_request():
-    app.jinja_env.cache = {}
+    app.jinja_env.cache = {}    
+
 
 
 if __name__ == '__main__':

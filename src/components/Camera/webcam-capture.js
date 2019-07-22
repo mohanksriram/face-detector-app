@@ -14,7 +14,8 @@ const centerButton = {
 
 const Photo = (props) => (
   <div className="output" style={{display: 'inline-block'}}>
-    <canvas id="photo" style={{width: "640px", height: "480px"}} ></canvas>
+    <img id="photo" src={`/lastFace/${performance.now()}`} style={{width: '640px', height: '480px'}}/>
+    {/* <canvas id="photo" style={{width: "640px", height: "480px"}} ></canvas> */}
   </div>
 );
 
@@ -94,6 +95,10 @@ export default class WebcamCapture extends React.Component {
       }, this.handlePredictClick);
     };
 
+    rtspCapture = () => {
+      this.handlePredictClick();
+    }
+
     renderPrediction() {
       const predictions = this.state.predictions
       const probs = this.state.probs
@@ -107,6 +112,10 @@ export default class WebcamCapture extends React.Component {
       }
 
       if (predictions.length > 0) {
+
+        const photo = document.getElementById('photo');
+        photo.setAttribute('src', `/lastFace/${performance.now()}`);
+      
 
         return (
         <span style={bold_style}> {this.state.svc_class} </span>
@@ -153,17 +162,17 @@ export default class WebcamCapture extends React.Component {
       const res = await resPromise;
       const payload = res.data;
       console.log('received payload: ', payload)
-      const photo = document.getElementById('photo2');
-      photo.setAttribute('src', `/serveImage/${payload.svc_class}`);
-      
+      const matchingPhoto = document.getElementById('photo2');
+      matchingPhoto.setAttribute('src', `/serveImage/${payload.svc_class}`);
+
       this.setState({predictions: payload.predictions, 
         probs: payload.probs,
         svc_class: payload.svc_class,
         computeTime: payload.compute_time,
         confidence: payload.confidence,
         faceRect: payload.face_rect,
-        isLoading: false}, this.capture);
-      console.log(payload)
+        isLoading: false}, this.rtspCapture);
+      // console.log(payload)
       // this.capture();
     } catch (e) {
         alert(e)
@@ -183,15 +192,15 @@ export default class WebcamCapture extends React.Component {
       return (
         <div style={{display: 'flex', backgroundColor: bg_color}}>
           <Card profile>
-          <Webcam
+          {/* <Webcam
             audio={false}
             height={480}
             ref={this.setRef}
             screenshotFormat="image/jpeg"
             width={640}
             videoConstraints={videoConstraints}
-          />
-          <Button color="primary" round onClick={ this.capture } style={centerButton}>Capture Snap</Button>
+          /> */}
+          <Button color="primary" round onClick={ this.handlePredictClick } style={centerButton}>Capture Snap</Button>
           {this.renderPrediction()}
           </Card>
 
