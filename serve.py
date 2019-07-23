@@ -22,182 +22,17 @@ import numpy as np
 from scipy.stats import mode
 from sklearn.cluster import KMeans
 import os
-from tensorflow.keras.backend import set_session
-import tensorflow as tf
 import time
-import face_recognition
+import sys
 import cv2
 
-sess = tf.compat.v1.get_default_session()
-graph = tf.get_default_graph()
-
-import logging
-
-logging.basicConfig(filename="Log_Test_File.txt",
-                level=logging.DEBUG,
-                format='%(levelname)s: %(asctime)s %(message)s',
-                datefmt='%m/%d/%Y %I:%M:%S')
-
-
-model_file = "opencv_face_detector_uint8.pb"
-config_file = "opencv_face_detector.pbtxt"
-dnn_weights_path = 'models'
-modelFile = os.path.join(dnn_weights_path, model_file)
-configFile = os.path.join(dnn_weights_path, config_file)
+sys.path.append("services")
+from services import camera_source, face_detector, face_describer
 
 enable_kmeans = True
 RTSP_URL = 'rtsp://admin:admin@192.168.1.117:554'
 last_detected_face = 'data/last_face.png'
 
-
-# Utility functions
-# extract a single face from a given photograph
-
-def get_face_locations(image):
-    blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), [104, 117, 123], False, False)
-    net = cv2.dnn.readNetFromTensorflow(modelFile, configFile)
-    net.setInput(blob)
-    detections = net.forward()
-    bboxes = []
-    frame_width = image.shape[1]
-    frame_height = image.shape[0]
-    for i in range(detections.shape[2]):
-        confidence = detections[0, 0, i, 2]
-        if confidence > 0.7:
-            x1 = int(detections[0, 0, i, 3] * frame_width)
-            y1 = int(detections[0, 0, i, 4] * frame_height)
-            x2 = int(detections[0, 0, i, 5] * frame_width)
-            y2 = int(detections[0, 0, i, 6] * frame_height)
-            
-            width = abs(x2 - x1)
-            height = abs(y2 - y1)
-            area = width * height
-
-            bboxes.append(([x1, y1, x2, y2], area))
-    #print(f'nomral bboxes: {bboxes}')
-    bboxes.sort(key=lambda x: x[1], reverse=True)
-    #print(f'sorted bboxes: {bboxes}')
-    return bboxes
-
-def extract_cv_face(image, required_size=(160, 160)):
-    start_time = time.time()
-    
-    image = np.array(image, dtype='uint8')
-    face_locations = get_face_locations(image)
-
-    end_time = time.time() - start_time
-    logging.info('Time for dnn Detector: {}'.format(end_time))
-    print('Time for dnn Detector: {}'.format(end_time))
-
-    if len(face_locations) > 0 and is_within_threshold(image, face_locations[0][0]):
-
-        x1, y1, x2, y2 = face_locations[0][0]
-        face_rect = face_locations[0][0]
-        
-        full_pixels = image
-
-        # face = full_pixels[top:bottom, left:right]
-
-        face = full_pixels[y1:y2, x1:x2]
-
-
-        image = Image.fromarray(face)
-        image = image.resize(required_size)
-        face_array = asarray(image)
-
-
-    else:
-        return [], []
-    
-    return face_array, face_rect
-
-def is_within_threshold(image, bbox, threshold=20):
-    x1, y1, x2, y2 = bbox
-
-    print(f'face box: {bbox}, width: {image.shape[0]}, height: {image.shape[1]}')
-
-
-    if x1 < threshold or image.shape[1] - x2 < threshold or y1 < threshold or image.shape[0] - y2 < threshold: 
-        return False
-
-    return True
-
-
-
-
-
-def extract_face(image, required_size=(160, 160)):
-    # convert to RGB, if needed
-    image = image.convert('RGB')
-    #image.setFlags(write=True)
-    # convert to array
-    #pixels = asarray(image)
-
-    resize_factor = 2
-
-    small_frame = image.resize((int(image.width * 1/resize_factor), int(image.height * 1/resize_factor)))
-
-    pixels = np.array(small_frame)
-    # create the detector, using default weights
-    start_time = time.time()
-    # detector = MTCNN()
-
-
-    # # detect faces in the image
-    # results = detector.detect_faces(pixels)
-
-
-    # # extract the bounding box from the first face
-    # x1, y1, width, height = results[0]['box']
-    # # bug fix
-    # x1, y1 = abs(x1), abs(y1)
-    # x2, y2 = x1 + width, y1 + height
-
-    face_locations = face_recognition.face_locations(pixels, number_of_times_to_upsample=0, model="cnn")
-
-    end_time = time.time() - start_time
-    logging.info('Time for MTCNN Detector: {}'.format(end_time))
-    print('Time for face_recognition Detector: {}'.format(end_time))
-
-    #print(f'image shape: {pixels.shape}')
-    # Print the location of each face in this image
-
-    if len(face_locations) > 0:
-        top, right, bottom, left = face_locations[0]
-        face_rect = face_locations[0]
-
-        top *= resize_factor
-        right *= resize_factor
-        bottom *= resize_factor
-        left *= resize_factor
-        #print(f'face_location: {face_locations[0]}')
-        # extract the face
-        full_pixels = np.array(image)
-        face = full_pixels[top:bottom, left:right]
-        #print(f'resized image: {face.shape}')
-        # resize pixels to the model size
-        image = Image.fromarray(face)
-        image = image.resize(required_size)
-        face_array = asarray(image)
-
-    else:
-        return [], []
-    
-    return face_array, face_rect
-
-# get the face embedding for one face
-def get_embedding(model, face_pixels):
-	# scale pixel values
-	face_pixels = face_pixels.astype('float32')
-	# standardize pixel values across channels (global)
-	mean, std = face_pixels.mean(), face_pixels.std()
-	face_pixels = (face_pixels - mean) / std
-	# transform face into one sample
-	samples = np.expand_dims(face_pixels, axis=0)
-	# make prediction to get embedding
-
-	yhat = model.predict(samples)
-	return yhat[0]
 
 def serve_pil_image(filename):
     img_io = StringIO()
@@ -240,19 +75,9 @@ def sim_predict(model, new_img_f, kmean_classes, top_n=1, n_classes=5):
 app = Flask(__name__, static_folder="build/static",
  template_folder="build")
 
-# All Model setup
 
-set_session(sess)
-
-# load the pre-trained Keras model
-start_time = time.time()
-
-facenet_model = load_model('models/facenet_keras.h5')
-
-end_time = time.time() - start_time
-logging.info('Time for loading facenet model: {}'.format(end_time))
-print('Time for loading facenet model: {}'.format(end_time))
-
+# load the describer model
+facenet_model = face_describer.FaceDescriber()
 
 start_time = time.time()
 
@@ -270,7 +95,6 @@ with open("models/kmeans_classes.txt", "rb") as fp:   # Unpickling
 svc_classes = np.load('models/svc_classes.npy')
 
 end_time = time.time() - start_time
-logging.info('Time for loading classifier: {}'.format(end_time))
 print('Time for loading classifier: {}'.format(end_time))
 
 
@@ -310,37 +134,37 @@ def upload_file():
         overall_time = time.time()
         start_time = time.time()
         
-       # print('received a get request')
-        # data_url = flask.request.args.get("url")
-        # content = data_url.split(';')[1]
-        # image_encoded = content.split(',')[1]
-        # body = base64.decodebytes(image_encoded.encode('utf-8'))
-        #image = Image.open(BytesIO(body))
-        vidcap = cv2.VideoCapture(RTSP_URL)
-        success, img = vidcap.read()
+        print('received a get request')
+        data_url = flask.request.args.get("url")
+        content = data_url.split(';')[1]
+        image_encoded = content.split(',')[1]
+        body = base64.decodebytes(image_encoded.encode('utf-8'))
+        img = Image.open(BytesIO(body))
 
+        # camera = camera_source.CameraSource(0)
+        # img = camera.getFrame()
 
-        cv2.imwrite(last_detected_face, img)
+        # cv2.imwrite(last_detected_face, img)
         end_time = time.time() - start_time
-        logging.info('Time for capturing image: {}'.format(end_time))
         print('Time for capturing image: {}'.format(end_time))
 
 
         start_time = time.time()
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        image = Image.fromarray(img)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        #image = Image.fromarray(img)
 
         # last_detected_face = image
 
         end_time = time.time() - start_time
-        logging.info('Time for cv2 to pil image: {}'.format(end_time))
         print('Time for cv2 to pil image: {}'.format(end_time))
 
 
         # Face detection
-        faces, face_rect = extract_cv_face(image)
+        detector = face_detector.FaceDetector()
+        face, face_rect = detector.getFaces(img)
         
-        if len(faces) == 0:
+        if len(face) == 0:
+            ## No face detected
             compute_time = time.time() - overall_time
             prediction_names = ['nobody']
             res = {'svc_class': prediction_names[0], 'confidence': 100}
@@ -351,17 +175,7 @@ def upload_file():
         print('Detected Face!')
 
         # Generate Embedding'
-        global sess
-        global graph
-        with graph.as_default():
-            set_session(sess)
-            start_time = time.time()
-            embedding = get_embedding(facenet_model, faces)
-            end_time = time.time() - start_time
-            logging.info('Time for generating embedding : {}'.format(end_time))
-            print('Time for generating embedding: {}'.format(end_time))
-
-
+        embedding = facenet_model.getEmbedding(face)
 
         start_time = time.time()
         in_encoder = Normalizer(norm='l2')
@@ -385,7 +199,6 @@ def upload_file():
         yhat_class, yhat_prob = sim_predict(kmeans_model, samples, kmean_classes, top_n=5)
         
         end_time = time.time() - start_time
-        logging.info('Time for class predictions: Kmeans: {}'.format(end_time))
         print('Time for class predictions: Kmeans: {}'.format(end_time))
 
 
