@@ -1,4 +1,3 @@
-
 import flask
 from flask import Flask, render_template
 from io import BytesIO
@@ -19,15 +18,13 @@ from keras.models import load_model
 from flask import send_file
 import pickle as p
 import numpy as np
-from scipy.stats import mode
-from sklearn.cluster import KMeans
 import os
 import time
 import sys
 import cv2
 
 sys.path.append("services")
-from services import camera_source, face_detector, face_describer
+from services import camera_source, face_detector, face_describer, face_verifier
 
 enable_kmeans = True
 RTSP_URL = 'rtsp://admin:admin@192.168.1.117:554'
@@ -41,36 +38,6 @@ def serve_pil_image(filename):
     return send_file(filename, mimetype='image/jpeg')
     #return send_file(img_io, mimetype='image/jpeg')
 
-def sim_predict(model, new_img_f, kmean_classes, top_n=1, n_classes=5):
-    # cluster labels do not match with actual order of train data. so find indices to reorder cluster centres
-    kmeans = model
-    steps = np.linspace(0, len(kmeans.labels_), num=n_classes+1)
-    orig_labels = []
-    last_val = 0
-    for i in steps[1:]:
-        cluster_labels = kmeans.labels_[last_val:int(i)]
-        last_val = int(i)
-        orig_labels += [mode(cluster_labels)[0][0]]
-
-    # new_map = {}
-    # for i, label in enumerate(encode_labels):
-    #     new_map[]
-
-
-    relabeled = kmeans.cluster_centers_[orig_labels]
-    sims = np.array([])
-    for i in range(relabeled.shape[0]):
-        sim = np.dot(relabeled[i],new_img_f)
-        sims = np.append(sims,sim)
-    sims_top_n = sims.argsort()[-top_n:][::-1]
-    classes = sims_top_n
-
-    classes = [kmean_classes[val] for val in classes]
-    
-    #print(f'new_classes: {classes}')
-    probs = sims[sims_top_n]
-    #print(f'classes: {classes}')
-    return classes, probs
 
 app = Flask(__name__, static_folder="build/static",
  template_folder="build")
@@ -78,25 +45,7 @@ app = Flask(__name__, static_folder="build/static",
 
 # load the describer model
 facenet_model = face_describer.FaceDescriber()
-
-start_time = time.time()
-
-filename = 'models/kmeans_model.sav'
-kmeans_model = pickle.load(open(filename, 'rb'))
-
-filename = 'models/svc_model.sav'
-svc_model = pickle.load(open(filename, 'rb'))
-
-        #    classifier_model = pickle.load(open(filename, 'rb'))
-kmean_classes = None
-with open("models/kmeans_classes.txt", "rb") as fp:   # Unpickling
-    kmean_classes = pickle.load(fp)
-
-svc_classes = np.load('models/svc_classes.npy')
-
-end_time = time.time() - start_time
-print('Time for loading classifier: {}'.format(end_time))
-
+face_classifer = face_verifier.FaceVerifier()
 
 
 @app.route("/")
@@ -183,36 +132,7 @@ def upload_file():
         
         embedding = in_encoder.transform(embedding)
 
-        # Perform prediction
-        #if not classifier_model:
-        #    filename = 'models/classifier_model.sav'
-
-        #    classifier_model = pickle.load(open(filename, 'rb'))
-
-
-        samples = embedding[0]
-        
-        svc_yhat_class = svc_model.predict(embedding)
-        svc_yhat_prob = svc_model.predict_proba(embedding)
-
-
-        yhat_class, yhat_prob = sim_predict(kmeans_model, samples, kmean_classes, top_n=5)
-        
-        end_time = time.time() - start_time
-        print('Time for class predictions: Kmeans: {}'.format(end_time))
-
-
-        class_probability = yhat_prob[0] * 100
-        predict_names = yhat_class
-        #print('Predicted: %s (%.3f)' % (predict_names, class_probability))
-        compute_time = time.time() - overall_time
-
-        res = {'svc_class': svc_classes[svc_yhat_class[0]], 'confidence': svc_yhat_prob[0, svc_yhat_class[0]]*100}
-
-        print(f'face_rect is: {face_rect}')
-
-        if enable_kmeans:
-            res.update({'predictions': predict_names, 'probs': list(yhat_prob), 'compute_time': compute_time, 'face_rect': list(face_rect)})
+        res = face_classifer.getPredictions(embedding)
         
         print(res)
         return flask.jsonify(res)

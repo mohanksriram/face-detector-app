@@ -170,7 +170,6 @@ export default class WebcamCapture extends React.Component {
         svc_class: payload.svc_class,
         computeTime: payload.compute_time,
         confidence: payload.confidence,
-        faceRect: payload.face_rect,
         isLoading: false}, this.capture);
       // console.log(payload)
       // this.capture();
