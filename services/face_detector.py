@@ -72,8 +72,10 @@ class FaceDetector(object):
         if len(face_locations) > 0 and self._isWithinThreshold(image=image, bbox=face_locations[0][0]):
 
             x1, y1, x2, y2 = face_locations[0][0]
-            face_rect = face_locations[0][0]
-            
+            print(f'image shape: {image.shape}')
+            height, width, _ = image.shape
+            face_rect = x1/width, y1/height, x2/width, y2/height
+
             full_pixels = image
 
             # face = full_pixels[top:bottom, left:right]

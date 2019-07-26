@@ -111,6 +111,8 @@ def upload_file():
         # Face detection
         detector = face_detector.FaceDetector()
         face, face_rect = detector.getFaces(img)
+
+        print(f'face_rect: {face_rect}')
         
         if len(face) == 0:
             ## No face detected
@@ -133,6 +135,7 @@ def upload_file():
         embedding = in_encoder.transform(embedding)
 
         res = face_classifer.getPredictions(embedding)
+        res.update({'face_rect': face_rect})
         
         print(res)
         return flask.jsonify(res)
