@@ -14,8 +14,8 @@ const centerButton = {
 
 const Photo = (props) => (
   <div className="output" style={{display: 'inline-block'}}>
-    <img id="photo" src={`/lastFace/${performance.now()}`} style={{width: '640px', height: '480px'}}/>
-    {/* <canvas id="photo" style={{width: "640px", height: "480px"}} ></canvas> */}
+    {/* <img id="photo" src={`/lastFace/${performance.now()}`} style={{width: '640px', height: '480px'}}/> */}
+    <canvas id="photo" style={{width: "640px", height: "480px"}} ></canvas>
   </div>
 );
 
@@ -58,10 +58,12 @@ export default class WebcamCapture extends React.Component {
       ctx.beginPath();
       ctx.lineWidth = "4";
       ctx.strokeStyle = "green";
-      let top = faceRect[0]
-      let right = faceRect[1]
-      let bottom = faceRect[2]
-      let left = faceRect[3]
+      let left = Math.floor(faceRect[0]*(photo.width))
+      let top = Math.floor(faceRect[1]*(photo.height))
+      let right = Math.floor(faceRect[2]*(photo.width))
+      let bottom = Math.floor(faceRect[3]*photo.height)
+
+      console.log(`draw rect: ${top}, ${right}, ${bottom}, ${left}`)
 
       ctx.rect(left, top, right-left, bottom-top);
       ctx.stroke();
@@ -74,13 +76,13 @@ export default class WebcamCapture extends React.Component {
       const photo = document.getElementById('photo');
       let ctx = photo.getContext("2d");
       let img_buffer = new Image;
+      this.drawRect();
       img_buffer.onload = function() {
         let imgWidth = img_buffer.width;
         let imgHeight = img_buffer.height;
         photo.width = imgWidth;
         photo.height = imgHeight;
         ctx.drawImage(img_buffer, 0, 0, imgWidth, imgHeight);
-        
         // Draw Face
         // ctx.beginPath();
         // ctx.strokeStyle = "green";
@@ -171,7 +173,7 @@ export default class WebcamCapture extends React.Component {
         computeTime: payload.compute_time,
         confidence: payload.confidence,
         faceRect: payload.face_rect,
-        isLoading: false}, this.rtspCapture);
+        isLoading: false}, this.capture);
       // console.log(payload)
       // this.capture();
     } catch (e) {
@@ -192,15 +194,15 @@ export default class WebcamCapture extends React.Component {
       return (
         <div style={{display: 'flex', backgroundColor: bg_color}}>
           <Card profile>
-          {/* <Webcam
+          <Webcam
             audio={false}
             height={480}
             ref={this.setRef}
             screenshotFormat="image/jpeg"
             width={640}
             videoConstraints={videoConstraints}
-          /> */}
-          <Button color="primary" round onClick={ this.handlePredictClick } style={centerButton}>Capture Snap</Button>
+          />
+          <Button color="primary" round onClick={ this.capture } style={centerButton}>Capture Snap</Button>
           {this.renderPrediction()}
           </Card>
 
