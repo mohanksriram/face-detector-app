@@ -33,10 +33,7 @@ last_detected_face = 'data/last_face.png'
 
 def serve_pil_image(filename):
     img_io = StringIO()
-    # pil_img.save(img_io, 'JPEG', quality=70)
-    # img_io.seek(0)
     return send_file(filename, mimetype='image/jpeg')
-    #return send_file(img_io, mimetype='image/jpeg')
 
 
 app = Flask(__name__, static_folder="build/static",
@@ -45,7 +42,7 @@ app = Flask(__name__, static_folder="build/static",
 
 # load the describer model
 facenet_model = face_describer.FaceDescriber()
-face_classifer = face_verifier.FaceVerifier()
+face_classifier = face_verifier.FaceVerifier()
 
 
 @app.route("/")
@@ -58,9 +55,7 @@ def dashboard():
 
 @app.route("/logo")
 def serve_img():
-    filename = f'data/custom/train/nobody/image_0.png'
-    img = Image.open(filename)
-    print(f'image: {img}')
+    filename = f'label_images/stranger/1.jpg'
     return serve_pil_image(filename)
 
 @app.route("/lastFace/<path:path>")
@@ -72,7 +67,7 @@ def serve_face(path):
 @app.route('/serveImage/<path:path>')
 def serve_latest(path):
     print(f'serving matching face!')
-    filename = f'data/custom/train/{path}/image_0.png'
+    filename = f'label_images/{path}/1.jpg'
     img = Image.open(filename)
     return serve_pil_image(filename)
 
@@ -89,27 +84,30 @@ def upload_file():
         image_encoded = content.split(',')[1]
         body = base64.decodebytes(image_encoded.encode('utf-8'))
         img = Image.open(BytesIO(body))
-
-        # camera = camera_source.CameraSource(0)
-        # img = camera.getFrame()
-
-        # cv2.imwrite(last_detected_face, img)
+        '''
+        For IP camera
+        camera = camera_source.CameraSource(0)
+        img = camera.getFrame()
+        cv2.imwrite(last_detected_face, img)
+        '''
         end_time = time.time() - start_time
         print('Time for capturing image: {}'.format(end_time))
 
-
         start_time = time.time()
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        #image = Image.fromarray(img)
+        '''
+        For IP camera
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(img)
 
-        # last_detected_face = image
-
+        last_detected_face = image
+        '''
         end_time = time.time() - start_time
         print('Time for cv2 to pil image: {}'.format(end_time))
 
 
         # Face detection
         detector = face_detector.FaceDetector()
+        # Only the biggest face
         face, face_rect = detector.getFaces(img)
 
         print(f'face_rect: {face_rect}')
@@ -117,13 +115,8 @@ def upload_file():
         if len(face) == 0:
             ## No face detected
             compute_time = time.time() - overall_time
-            prediction_names = ['nobody']
-            res = {'svc_class': prediction_names[0], 'confidence': 100}
-            res.update({'predictions': prediction_names, 'probs': [1], 'compute_time': compute_time, 'face_rect': [0, 0, 0, 0]})
+            res = {'class_name': None, 'confidence': 100, 'compute_time': compute_time, 'face_rect': [0, 0, 0, 0]}
             return flask.jsonify(res)
-
-
-        print('Detected Face!')
 
         # Generate Embedding'
         embedding = facenet_model.getEmbedding(face)
@@ -134,10 +127,9 @@ def upload_file():
         
         embedding = in_encoder.transform(embedding)
 
-        res = face_classifer.getPredictions(embedding)
+        res = face_classifier.getPredictions(embedding)
         res.update({'face_rect': face_rect})
         
-        print(res)
         return flask.jsonify(res)
 
     res = []

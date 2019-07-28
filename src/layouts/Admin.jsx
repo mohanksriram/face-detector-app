@@ -34,7 +34,7 @@ import routes from "routes.js";
 import dashboardStyle from "assets/jss/material-dashboard-react/layouts/dashboardStyle.jsx";
 
 import image from "assets/img/sidebar-2.jpg";
-import logo from "assets/img/scientistlogo.png";
+import logo from "assets/img/reactlogo.png";
 
 let ps;
 
@@ -115,7 +115,7 @@ class Dashboard extends React.Component {
       <div className={classes.wrapper}>
         <Sidebar
           routes={routes}
-          logoText={"Scientist Technologies"}
+          logoText={"Mohankumar Sriram"}
           logo={logo}
           image={this.state.image}
           handleDrawerToggle={this.handleDrawerToggle}

@@ -15,11 +15,11 @@ Clone the repo
 git clone https://github.com/mohankumarSriram/face-detector-app.git
 ```
 
-- Download data [here](https://drive.google.com/open?id=1ydV6Mrx-WfShCjaf79dPWvpp85XqLziN)
-- Download pre-trained models [here](https://drive.google.com/open?id=185ox0xeZNkisCUVoMQTIbVt4XyzpQIfc)
+- Download label images [here](https://drive.google.com/open?id=1JfMAWG0R80dTKfkJxVyUCKAbnmD270Vv)
+- Download pre-trained models [here](https://drive.google.com/open?id=1aa8tAh-cXqwjCuILzzsmdIMJc9PNyXaz)
 
 ```
-unzip ~/Downloads/data.zip -d ./
+unzip ~/Downloads/label_images.zip -d ./
 unzip ~/Downloads/models.zip -d ./
 ```
 
@@ -32,3 +32,5 @@ Launch App
 ```
 python serve.py
 ```
+
+Note: Please refer to the training process in this [repo](https://github.com/mohankumarSriram/face-verification) 

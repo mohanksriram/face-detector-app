@@ -14,7 +14,6 @@ const centerButton = {
 
 const Photo = (props) => (
   <div className="output" style={{display: 'inline-block'}}>
-    {/* <img id="photo" src={`/lastFace/${performance.now()}`} style={{width: '640px', height: '480px'}}/> */}
     <canvas id="photo" style={{width: "640px", height: "480px"}} ></canvas>
   </div>
 );
@@ -32,15 +31,12 @@ export default class WebcamCapture extends React.Component {
     super(props);
     this.state = {
         file: null,
-        confidence: 0,
-        predictions: ['nobody'],
-        probs: [0.2, 0.5, 0.8],
         imageSelected: false,
         isLoading: false,
         rawFile: null,
         computeTime: 0,
         faceRect: [30, 30, 50, 50],
-        svc_class: 'nobody'
+        className: null
       }
     }
 
@@ -70,6 +66,7 @@ export default class WebcamCapture extends React.Component {
     }
   
     capture = () => {
+
       const imageSrc = this.webcam.getScreenshot();
       const faceRect = this.state.faceRect;
       console.log('obtained image src: ', imageSrc);
@@ -83,15 +80,8 @@ export default class WebcamCapture extends React.Component {
         photo.width = imgWidth;
         photo.height = imgHeight;
         ctx.drawImage(img_buffer, 0, 0, imgWidth, imgHeight);
-        // Draw Face
-        // ctx.beginPath();
-        // ctx.strokeStyle = "green";
-        // ctx.rect(faceRect[0], faceRect[1], faceRect[2], faceRect[3]);
-        // ctx.stroke()
     }
     img_buffer.src = imageSrc;
-      // ctx.drawImage(imageSrc, 0, 0)
-      // photo.setAttribute('src', imageSrc);
       this.setState({
         file: imageSrc,
       }, this.handlePredictClick);
@@ -102,51 +92,21 @@ export default class WebcamCapture extends React.Component {
     }
 
     renderPrediction() {
-      const predictions = this.state.predictions
-      const probs = this.state.probs
-      const computeTime = this.state.computeTime
+      const prediction = this.state.className
 
       const bold_style = {fontSize: "-webkit-xxx-large", fontWeight: "800", paddingTop: "130px"}
-      if (predictions.length == 1) {
+      
+      if (prediction == null) {
         return (
           <span style={bold_style}> Please Come Closer</span>
         )
       }
-
-      if (predictions.length > 0) {
-
-        const photo = document.getElementById('photo');
-        photo.setAttribute('src', `/lastFace/${performance.now()}`);
-      
-
+      else {
         return (
-        <span style={bold_style}> {this.state.svc_class} </span>
+        <span style={bold_style}> {prediction} </span>
         )
-
-
-          // // const predictionItems = predictions.map(function (ele, i) {
-          // //   return <li>{ele} ({probs[i]}) </li> 
-          // // });
-
-          // return (
-          //     <ul>
-          //         {predictionItems}
-          //         <span> prediction time is: </span> {computeTime} <span> seconds</span>
-          //         <ul>
-          //         <span>Confidence: </span> {this.state.confidence}
-          //         </ul>
-          //     </ul>
-          // )
-
-      } else {
-          return (
-            <ul>
-              <span>Confidence: </span> {this.state.confidence}
-            </ul>
-          )
       }
   }
-
 
     handlePredictClick = async (event) => {
       console.log('calling handlePredict')
@@ -164,18 +124,22 @@ export default class WebcamCapture extends React.Component {
       const res = await resPromise;
       const payload = res.data;
       console.log('received payload: ', payload)
+
+      const name = payload.class_name;
       const matchingPhoto = document.getElementById('photo2');
-      matchingPhoto.setAttribute('src', `/serveImage/${payload.svc_class}`);
+
+      if (name != null) {
+        matchingPhoto.setAttribute('src', `/serveImage/${name}`);
+      } else {
+        matchingPhoto.setAttribute('src', `/serveImage/stranger`);
+      }
 
       this.setState({predictions: payload.predictions, 
         probs: payload.probs,
-        svc_class: payload.svc_class,
+        className: payload.class_name,
         computeTime: payload.compute_time,
-        confidence: payload.confidence,
         faceRect: payload.face_rect,
         isLoading: false}, this.capture);
-      // console.log(payload)
-      // this.capture();
     } catch (e) {
         alert(e)
     }
@@ -188,9 +152,8 @@ export default class WebcamCapture extends React.Component {
         facingMode: "user"
       };
   
-      const bg_color = this.state.predictions.length > 1 ? 'green' : 'yellow'
+      const bg_color = this.state.className != null ? 'green' : 'yellow'
 
-      // console.log(`bg_color: ${bg_color}`)
       return (
         <div style={{display: 'flex', backgroundColor: bg_color}}>
           <Card profile>
